@@ -3,7 +3,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 # ---------- Helper Functions ----------
-
 def poly_from_coeffs(active_coeffs):
     """Return polynomial coefficients (as a NumPy array) from a list of coefficients (in descending order)."""
     return np.array(active_coeffs)
@@ -43,7 +42,7 @@ default_coefs = [0, 0, 1, -14, -220, 1016, -1056]
 default_roots = [-12, 2, 2, 22, 0, 0]
 
 default_alpha = 0.001
-default_x0 = 0
+default_x0 = 0.0      # Make sure this is a float, not an int or list.
 default_steps = 5
 
 # ---------- Streamlit Sidebar Widgets ----------
@@ -65,8 +64,11 @@ if mode == "Coeffs":
     active_coefs = []
     for i, default_val in enumerate(active_coef_defaults):
         exponent = degree - i
-        coef = st.sidebar.slider(f"Coefficient for x^{exponent}", min_value=-10.0, max_value=10.0,
-                                 value=float(default_val), step=0.1)
+        coef = st.sidebar.slider(f"Coefficient for x^{exponent}",
+                                 min_value=-10.0,
+                                 max_value=10.0,
+                                 value=float(default_val),
+                                 step=0.1)
         active_coefs.append(coef)
     # Coefficients must be in descending order (highest power first)
     poly_coef = poly_from_coeffs(active_coefs)
@@ -75,19 +77,31 @@ else:
     # For a degree d polynomial, we have d roots.
     active_roots = []
     for i in range(degree):
-        root_val = st.sidebar.slider(f"Root {i+1}", min_value=-30.0, max_value=30.0,
-                                     value=float(default_roots[i]), step=0.1)
+        root_val = st.sidebar.slider(f"Root {i+1}",
+                                     min_value=-30.0,
+                                     max_value=30.0,
+                                     value=float(default_roots[i]),
+                                     step=0.1)
         active_roots.append(root_val)
     poly_coef = poly_from_roots(active_roots)
 
 # Gradient Descent parameters
 st.sidebar.title("Gradient Descent Settings")
-alpha = st.sidebar.slider("Learning Rate (α)", min_value=0.0001, max_value=0.01,
-                          value=default_alpha, step=0.0001)
-x0 = st.sidebar.slider("Starting x", min_value=-30.0, max_value=30.0,
-                       value=default_x0, step=0.1)
-steps = st.sidebar.slider("Number of Steps", min_value=1, max_value=20,
-                          value=default_steps, step=1)
+alpha = st.sidebar.slider("Learning Rate (α)",
+                          min_value=0.0001,
+                          max_value=0.01,
+                          value=default_alpha,
+                          step=0.0001)
+x0 = st.sidebar.slider("Starting x",
+                       min_value=-30.0,
+                       max_value=30.0,
+                       value=float(default_x0),  # ensure it's a float
+                       step=0.1)
+steps = st.sidebar.slider("Number of Steps",
+                          min_value=1,
+                          max_value=20,
+                          value=default_steps,
+                          step=1)
 
 # ---------- Compute Derived Quantities ----------
 
