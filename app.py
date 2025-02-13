@@ -166,8 +166,8 @@ x0 = st.sidebar.slider("Starting x", min_value=-30.0, max_value=30.0, value=floa
 steps = st.sidebar.slider("Number of Steps", min_value=1, max_value=20, value=default_steps, step=1)
 
 # Zoom controls.
-plot_x_range = st.sidebar.slider("Plot Range (x-axis)", min_value=10, max_value=200, value=60, step=5)
-plot_y_range = st.sidebar.slider("Plot Range (y-axis)", min_value=10, max_value=5000, value=1000, step=10)
+plot_x_range = st.sidebar.slider("Plot Range (x-axis)", min_value=10, max_value=2000, value=60, step=5)
+plot_y_range = st.sidebar.slider("Plot Range (y-axis)", min_value=10, max_value=5000000, value=1000000, step=10)
 
 # ---------- Compute Derived Quantities ----------
 deriv_coef = derivative_coeffs(poly_coef)
