@@ -13,7 +13,7 @@ def poly_from_roots(active_roots):
     return np.poly(active_roots)
 
 def derivative_coeffs(poly_coeffs):
-    """Compute the derivative coefficients for a polynomial given its coefficients (highest power first)."""
+    """Compute derivative coefficients for a polynomial given its coefficients (highest power first)."""
     n = len(poly_coeffs) - 1
     if n <= 0:
         return np.array([0])
@@ -43,7 +43,7 @@ def poly_to_latex(coeffs):
         exp = degree - i
         if np.isclose(a, 0):
             continue
-        # Determine sign (omit plus for the first term if positive)
+        # Determine the sign string.
         if a < 0:
             sign_str = " - " if terms else "-"
         else:
@@ -52,7 +52,7 @@ def poly_to_latex(coeffs):
         if exp == 0:
             term_str = f"{abs_a:g}"
         elif exp == 1:
-            term_str = f"x" if np.isclose(abs_a, 1) else f"{abs_a:g}x"
+            term_str = "x" if np.isclose(abs_a, 1) else f"{abs_a:g}x"
         else:
             term_str = f"x^{{{exp}}}" if np.isclose(abs_a, 1) else f"{abs_a:g}x^{{{exp}}}"
         terms.append(sign_str + term_str)
@@ -61,26 +61,26 @@ def poly_to_latex(coeffs):
     return "".join(terms)
 
 # ---------- Default Settings ----------
-# For consistency between modes, we use the same underlying polynomial.
-# Let f(x) = (x+30)*(x-2)^2*(x-22), whose expanded form is:
-#   x^4 + 4x^3 -688x^2 +2672x -2640.
-# For "Coeffs" mode (maximum degree 6), we store a 7-element list:
+# Underlying polynomial: f(x) = (x+30) * (x-2)^2 * (x-22)
+# Its expanded form is: x^4 + 4x^3 - 688x^2 + 2672x - 2640.
+# For "Coeffs" mode (using a 7-element list for degrees up to 6) we have:
 default_degree = 4
-default_coefs = [0, 0, 1, 4, -688, 2672, -2640]   # Only last 5 will be active when degree=4.
-default_roots = [-30, 2, 2, 22, 0, 0]              # For degree=4, active roots: -30, 2, 2, 22.
+default_coefs = [0, 0, 1, 4, -688, 2672, -2640]   # When degree=4, active coefficients are the last 5.
+# For "Roots" mode, default roots for degree=4:
+default_roots = [-30, 2, 2, 22, 0, 0]              # Only the first 4 are active when degree=4.
 
 default_alpha = 0.001
 default_x0 = 5.5
 default_steps = 5
 
 # ---------- Streamlit Sidebar Widgets ----------
+
 st.sidebar.title("Polynomial Settings")
 
-# Select mode: Coefficients or Roots.
-# Default mode set to "Roots" (index=1).
+# Mode selection: "Coeffs" or "Roots". Default to "Roots".
 mode = st.sidebar.radio("Select Mode", ("Coeffs", "Roots"), index=1)
 
-# Degree slider: determines how many coefficients/roots are active.
+# Degree slider (affects the number of active sliders)
 degree = st.sidebar.slider("Degree", min_value=1, max_value=6, value=default_degree, step=1)
 
 if mode == "Coeffs":
@@ -90,49 +90,52 @@ if mode == "Coeffs":
     active_coefs = []
     for i, default_val in enumerate(active_coef_defaults):
         exponent = degree - i
-        coef = st.sidebar.slider(f"Coefficient for x^{exponent}",
-                                 min_value=-10.0,
-                                 max_value=10.0,
-                                 value=float(default_val),
-                                 step=0.1)
+        # Use a unique key that depends on the mode and degree so that the slider resets when degree changes.
+        coef = st.sidebar.slider(
+            f"Coefficient for x^{exponent}",
+            min_value=-10.0,
+            max_value=10.0,
+            value=float(default_val),
+            step=0.1,
+            key=f"coef_{degree}_{i}"
+        )
         active_coefs.append(coef)
-    # Build polynomial from these coefficients.
     poly_coef = poly_from_coeffs(active_coefs)
 else:
     st.sidebar.subheader("Root Settings")
-    # For a degree-d polynomial, we have d roots.
     active_roots = []
     for i in range(degree):
-        root_val = st.sidebar.slider(f"Root {i+1}",
-                                     min_value=-30.0,
-                                     max_value=30.0,
-                                     value=float(default_roots[i]),
-                                     step=0.1)
+        # Use a unique key based on degree.
+        root_val = st.sidebar.slider(
+            f"Root {i+1}",
+            min_value=-30.0,
+            max_value=30.0,
+            value=float(default_roots[i]),
+            step=0.1,
+            key=f"root_{degree}_{i}"
+        )
         active_roots.append(root_val)
     poly_coef = poly_from_roots(active_roots)
 
-# ---------- Gradient Descent Settings ----------
 st.sidebar.title("Gradient Descent Settings")
-alpha = st.sidebar.slider("Learning Rate (α)",
-                          min_value=0.0001,
-                          max_value=0.01,
-                          value=default_alpha,
-                          step=0.0001,
-                          format="%.5f")
-x0 = st.sidebar.slider("Starting x",
-                       min_value=-30.0,
-                       max_value=30.0,
-                       value=float(default_x0),
-                       step=0.1)
-steps = st.sidebar.slider("Number of Steps",
-                          min_value=1,
-                          max_value=20,
-                          value=default_steps,
-                          step=1)
+alpha = st.sidebar.slider(
+    "Learning Rate (α)",
+    min_value=0.0001,
+    max_value=0.01,
+    value=default_alpha,
+    step=0.0001,
+    format="%.5f"
+)
+x0 = st.sidebar.slider("Starting x", min_value=-30.0, max_value=30.0, value=float(default_x0), step=0.1)
+steps = st.sidebar.slider("Number of Steps", min_value=1, max_value=20, value=default_steps, step=1)
+
+# Add a slider to control the x-axis range (zoom in/out)
+plot_range = st.sidebar.slider("Plot Range (x-axis)", min_value=10, max_value=200, value=60, step=5)
 
 # ---------- Compute Derived Quantities ----------
+
 deriv_coef = derivative_coeffs(poly_coef)
-x_vals = np.linspace(-30, 30, 800)
+x_vals = np.linspace(-plot_range, plot_range, 800)
 y_vals = np.polyval(poly_coef, x_vals)
 yprime_vals = np.polyval(deriv_coef, x_vals)
 gd_points = gradient_descent_steps(x0, alpha, poly_coef, deriv_coef, steps=steps)
@@ -162,6 +165,5 @@ ax.set_ylabel("f(x)", fontsize=14)
 ax.set_title("Interactive Polynomial, Its Derivative, and Gradient Descent", fontsize=16)
 ax.legend(fontsize=12)
 ax.grid(True)
-
-# ---------- Display the Plot in Streamlit ----------
+ax.set_xlim(-plot_range, plot_range)
 st.pyplot(fig)
