@@ -2,6 +2,19 @@ import streamlit as st
 import numpy as np
 import matplotlib.pyplot as plt
 
+# ---------- Custom CSS for Wider Sliders ----------
+st.markdown(
+    """
+    <style>
+    /* Increase slider width in the sidebar */
+    div[data-baseweb="slider"] {
+        width: 400px;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True
+)
+
 # ---------- Helper Functions ----------
 
 def poly_from_coeffs(active_coeffs):
@@ -63,58 +76,78 @@ def poly_to_latex(coeffs):
 # ---------- Default Settings ----------
 # Underlying polynomial: f(x) = (x+30) * (x-2)^2 * (x-22)
 # Its expanded form is: x^4 + 4x^3 - 688x^2 + 2672x - 2640.
-# For "Coeffs" mode (using a 7-element list for degrees up to 6) we have:
+# For "Coeffs" mode we use a 7-element list (for degrees up to 6):
 default_degree = 4
-default_coefs = [0, 0, 1, 4, -688, 2672, -2640]   # When degree=4, active coefficients are the last 5.
-# For "Roots" mode, default roots for degree=4:
-default_roots = [-30, 2, 2, 22, 0, 0]              # Only the first 4 are active when degree=4.
+default_coefs = [0, 0, 1, 4, -688, 2672, -2640]   # When degree=4, active are the last 5.
+# For "Roots" mode, for degree=4:
+default_roots = [-30, 2, 2, 22, 0, 0]              # Only the first 4 are active.
 
 default_alpha = 0.001
 default_x0 = 5.5
 default_steps = 5
 
-# ---------- Streamlit Sidebar Widgets ----------
+# ---------- Sidebar Widgets ----------
 
 st.sidebar.title("Polynomial Settings")
 
 # Mode selection: "Coeffs" or "Roots". Default to "Roots".
 mode = st.sidebar.radio("Select Mode", ("Coeffs", "Roots"), index=1)
 
-# Degree slider (affects the number of active sliders)
+# Degree slider (affects the number of active inputs)
 degree = st.sidebar.slider("Degree", min_value=1, max_value=6, value=default_degree, step=1)
 
+# --- Coefficient/Root Input Section with Slider and Text Box ---
 if mode == "Coeffs":
     st.sidebar.subheader("Coefficient Settings")
-    # For a degree-d polynomial, we need d+1 coefficients.
+    # For a degree-d polynomial, need d+1 coefficients.
     active_coef_defaults = default_coefs[-(degree+1):]
     active_coefs = []
     for i, default_val in enumerate(active_coef_defaults):
-        exponent = degree - i
-        # Use a unique key that depends on the mode and degree so that the slider resets when degree changes.
-        coef = st.sidebar.slider(
-            f"Coefficient for x^{exponent}",
-            min_value=-10.0,
-            max_value=10.0,
+        exp = degree - i
+        # Create two columns: slider and text input
+        col1, col2 = st.sidebar.columns([3, 1])
+        slider_val = col1.slider(
+            f"Coefficient for x^{exp}",
+            min_value=-2000.0,
+            max_value=2000.0,
             value=float(default_val),
             step=0.1,
-            key=f"coef_{degree}_{i}"
+            key=f"coef_slider_{degree}_{i}"
         )
-        active_coefs.append(coef)
+        text_val = col2.text_input(
+            "",
+            value=str(slider_val),
+            key=f"coef_text_{degree}_{i}"
+        )
+        try:
+            final_val = float(text_val)
+        except ValueError:
+            final_val = slider_val
+        active_coefs.append(final_val)
     poly_coef = poly_from_coeffs(active_coefs)
 else:
     st.sidebar.subheader("Root Settings")
     active_roots = []
     for i in range(degree):
-        # Use a unique key based on degree.
-        root_val = st.sidebar.slider(
+        col1, col2 = st.sidebar.columns([3, 1])
+        slider_val = col1.slider(
             f"Root {i+1}",
-            min_value=-30.0,
-            max_value=30.0,
+            min_value=-100.0,
+            max_value=100.0,
             value=float(default_roots[i]),
             step=0.1,
-            key=f"root_{degree}_{i}"
+            key=f"root_slider_{degree}_{i}"
         )
-        active_roots.append(root_val)
+        text_val = col2.text_input(
+            "",
+            value=str(slider_val),
+            key=f"root_text_{degree}_{i}"
+        )
+        try:
+            final_val = float(text_val)
+        except ValueError:
+            final_val = slider_val
+        active_roots.append(final_val)
     poly_coef = poly_from_roots(active_roots)
 
 st.sidebar.title("Gradient Descent Settings")
@@ -129,13 +162,13 @@ alpha = st.sidebar.slider(
 x0 = st.sidebar.slider("Starting x", min_value=-30.0, max_value=30.0, value=float(default_x0), step=0.1)
 steps = st.sidebar.slider("Number of Steps", min_value=1, max_value=20, value=default_steps, step=1)
 
-# Add a slider to control the x-axis range (zoom in/out)
-plot_range = st.sidebar.slider("Plot Range (x-axis)", min_value=10, max_value=200, value=60, step=5)
+# Add slider for x-axis (horizontal) zoom and y-axis (vertical) zoom.
+plot_x_range = st.sidebar.slider("Plot Range (x-axis)", min_value=10, max_value=200, value=60, step=5)
+plot_y_range = st.sidebar.slider("Plot Range (y-axis)", min_value=10, max_value=5000, value=1000, step=10)
 
 # ---------- Compute Derived Quantities ----------
-
 deriv_coef = derivative_coeffs(poly_coef)
-x_vals = np.linspace(-plot_range, plot_range, 800)
+x_vals = np.linspace(-plot_x_range, plot_x_range, 800)
 y_vals = np.polyval(poly_coef, x_vals)
 yprime_vals = np.polyval(deriv_coef, x_vals)
 gd_points = gradient_descent_steps(x0, alpha, poly_coef, deriv_coef, steps=steps)
@@ -165,5 +198,6 @@ ax.set_ylabel("f(x)", fontsize=14)
 ax.set_title("Interactive Polynomial, Its Derivative, and Gradient Descent", fontsize=16)
 ax.legend(fontsize=12)
 ax.grid(True)
-ax.set_xlim(-plot_range, plot_range)
+ax.set_xlim(-plot_x_range, plot_x_range)
+ax.set_ylim(-plot_y_range, plot_y_range)
 st.pyplot(fig)
