@@ -2,7 +2,10 @@ import streamlit as st
 import numpy as np
 import matplotlib.pyplot as plt
 
-# ---------- Custom CSS for Wider Sliders ----------
+# Set page configuration to wide layout.
+st.set_page_config(layout="wide", page_title="Interactive Polynomial Explorer")
+
+# ---------- Custom CSS for Wider Sliders in Sidebar ----------
 st.markdown(
     """
     <style>
@@ -10,15 +13,19 @@ st.markdown(
     div[data-baseweb="slider"] {
         width: 400px;
     }
+    /* Increase the width of text input boxes in the sidebar */
+    div[data-baseweb="input"] > div {
+        width: 100px;
+    }
     </style>
     """,
-    unsafe_allow_html=True
+    unsafe_allow_html=True,
 )
 
 # ---------- Helper Functions ----------
 
 def poly_from_coeffs(active_coeffs):
-    """Return polynomial coefficients (as a NumPy array) from a list of coefficients (in descending order)."""
+    """Return polynomial coefficients (as a NumPy array) from a list (in descending order)."""
     return np.array(active_coeffs)
 
 def poly_from_roots(active_roots):
@@ -41,7 +48,7 @@ def gradient_descent_steps(x0, alpha, poly_coef, deriv_coef, steps=5):
     return np.array(pts)
 
 def filter_real(roots, tol=1e-7):
-    """Return only the real roots (within a tolerance) from an array of roots."""
+    """Return only the real roots from an array of roots."""
     return np.array([r.real for r in roots if np.abs(r.imag) < tol])
 
 def poly_to_latex(coeffs):
@@ -56,7 +63,7 @@ def poly_to_latex(coeffs):
         exp = degree - i
         if np.isclose(a, 0):
             continue
-        # Determine the sign string.
+        # Determine sign.
         if a < 0:
             sign_str = " - " if terms else "-"
         else:
@@ -75,13 +82,10 @@ def poly_to_latex(coeffs):
 
 # ---------- Default Settings ----------
 # Underlying polynomial: f(x) = (x+30) * (x-2)^2 * (x-22)
-# Its expanded form is: x^4 + 4x^3 - 688x^2 + 2672x - 2640.
-# For "Coeffs" mode we use a 7-element list (for degrees up to 6):
+# Expanded: x^4 + 4x^3 - 688x^2 + 2672x - 2640.
 default_degree = 4
-default_coefs = [0, 0, 1, 4, -688, 2672, -2640]   # When degree=4, active are the last 5.
-# For "Roots" mode, for degree=4:
-default_roots = [-30, 2, 2, 22, 0, 0]              # Only the first 4 are active.
-
+default_coefs = [0, 0, 1, 4, -688, 2672, -2640]   # When degree=4, active coefficients are the last 5.
+default_roots = [-30, 2, 2, 22, 0, 0]              # In "Roots" mode, first 4 are active.
 default_alpha = 0.001
 default_x0 = 5.5
 default_steps = 5
@@ -90,23 +94,21 @@ default_steps = 5
 
 st.sidebar.title("Polynomial Settings")
 
-# Mode selection: "Coeffs" or "Roots". Default to "Roots".
+# Mode selection: "Coeffs" or "Roots" (default to Roots).
 mode = st.sidebar.radio("Select Mode", ("Coeffs", "Roots"), index=1)
 
-# Degree slider (affects the number of active inputs)
+# Degree slider.
 degree = st.sidebar.slider("Degree", min_value=1, max_value=6, value=default_degree, step=1)
 
-# --- Coefficient/Root Input Section with Slider and Text Box ---
+# --- Coefficient / Root Input Section ---
 if mode == "Coeffs":
     st.sidebar.subheader("Coefficient Settings")
-    # For a degree-d polynomial, need d+1 coefficients.
     active_coef_defaults = default_coefs[-(degree+1):]
     active_coefs = []
     for i, default_val in enumerate(active_coef_defaults):
         exp = degree - i
-        # Create two columns: slider and text input
-        col1, col2 = st.sidebar.columns([3, 1])
-        slider_val = col1.slider(
+        # Create slider and text input one after the other.
+        slider_val = st.sidebar.slider(
             f"Coefficient for x^{exp}",
             min_value=-2000.0,
             max_value=2000.0,
@@ -114,8 +116,8 @@ if mode == "Coeffs":
             step=0.1,
             key=f"coef_slider_{degree}_{i}"
         )
-        text_val = col2.text_input(
-            "",
+        text_val = st.sidebar.text_input(
+            f"Enter value for Coefficient x^{exp}",
             value=str(slider_val),
             key=f"coef_text_{degree}_{i}"
         )
@@ -124,13 +126,13 @@ if mode == "Coeffs":
         except ValueError:
             final_val = slider_val
         active_coefs.append(final_val)
+        st.sidebar.markdown("<br>", unsafe_allow_html=True)
     poly_coef = poly_from_coeffs(active_coefs)
 else:
     st.sidebar.subheader("Root Settings")
     active_roots = []
     for i in range(degree):
-        col1, col2 = st.sidebar.columns([3, 1])
-        slider_val = col1.slider(
+        slider_val = st.sidebar.slider(
             f"Root {i+1}",
             min_value=-100.0,
             max_value=100.0,
@@ -138,8 +140,8 @@ else:
             step=0.1,
             key=f"root_slider_{degree}_{i}"
         )
-        text_val = col2.text_input(
-            "",
+        text_val = st.sidebar.text_input(
+            f"Enter value for Root {i+1}",
             value=str(slider_val),
             key=f"root_text_{degree}_{i}"
         )
@@ -148,6 +150,7 @@ else:
         except ValueError:
             final_val = slider_val
         active_roots.append(final_val)
+        st.sidebar.markdown("<br>", unsafe_allow_html=True)
     poly_coef = poly_from_roots(active_roots)
 
 st.sidebar.title("Gradient Descent Settings")
@@ -162,7 +165,7 @@ alpha = st.sidebar.slider(
 x0 = st.sidebar.slider("Starting x", min_value=-30.0, max_value=30.0, value=float(default_x0), step=0.1)
 steps = st.sidebar.slider("Number of Steps", min_value=1, max_value=20, value=default_steps, step=1)
 
-# Add slider for x-axis (horizontal) zoom and y-axis (vertical) zoom.
+# Zoom controls.
 plot_x_range = st.sidebar.slider("Plot Range (x-axis)", min_value=10, max_value=200, value=60, step=5)
 plot_y_range = st.sidebar.slider("Plot Range (y-axis)", min_value=10, max_value=5000, value=1000, step=10)
 
@@ -179,14 +182,14 @@ try:
 except Exception:
     real_roots = np.array([])
 
-# Create a LaTeX string for the expanded polynomial.
+# Create LaTeX string for expanded polynomial.
 latex_poly = r"f(x) = " + poly_to_latex(poly_coef.tolist())
 
-# ---------- Display the Expanded Polynomial ----------
+# ---------- Display Expanded Polynomial ----------
 st.write("### Expanded Polynomial")
 st.latex(latex_poly)
 
-# ---------- Create the Plot (Bigger Figure) ----------
+# ---------- Create the Plot (Larger Figure) ----------
 fig, ax = plt.subplots(figsize=(14, 9))
 ax.plot(x_vals, y_vals, color="blue", lw=2, label="f(x)")
 ax.plot(x_vals, yprime_vals, "--", color="green", lw=2, label="f'(x)")
