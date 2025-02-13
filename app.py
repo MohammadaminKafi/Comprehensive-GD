@@ -3,6 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 # ---------- Helper Functions ----------
+
 def poly_from_coeffs(active_coeffs):
     """Return polynomial coefficients (as a NumPy array) from a list of coefficients (in descending order)."""
     return np.array(active_coeffs)
@@ -30,14 +31,43 @@ def filter_real(roots, tol=1e-7):
     """Return only the real roots (within a tolerance) from an array of roots."""
     return np.array([r.real for r in roots if np.abs(r.imag) < tol])
 
-# ---------- Default Settings ----------
-# We are now using Roots mode by default.
-default_degree = 4
-# For Roots mode, we need a list of 6 roots; the first 4 will be active.
-default_roots = [-30, 2, 2, 22, 0, 0]
+def poly_to_latex(coeffs):
+    """
+    Convert a list of polynomial coefficients (in descending order) into a LaTeX string.
+    For example, [1, 4, -688, 2672, -2640] becomes:
+    f(x) = x^4 + 4x^3 - 688x^2 + 2672x - 2640
+    """
+    terms = []
+    degree = len(coeffs) - 1
+    for i, a in enumerate(coeffs):
+        exp = degree - i
+        if np.isclose(a, 0):
+            continue
+        # Determine sign (omit plus for the first term if positive)
+        if a < 0:
+            sign_str = " - " if terms else "-"
+        else:
+            sign_str = " + " if terms else ""
+        abs_a = abs(a)
+        if exp == 0:
+            term_str = f"{abs_a:g}"
+        elif exp == 1:
+            term_str = f"x" if np.isclose(abs_a, 1) else f"{abs_a:g}x"
+        else:
+            term_str = f"x^{{{exp}}}" if np.isclose(abs_a, 1) else f"{abs_a:g}x^{{{exp}}}"
+        terms.append(sign_str + term_str)
+    if not terms:
+        return "0"
+    return "".join(terms)
 
-# (These defaults for coefficients won't be used in default mode but are kept for completeness.)
-default_coefs = [0, 0, 1, -14, -220, 1016, -1056]
+# ---------- Default Settings ----------
+# For consistency between modes, we use the same underlying polynomial.
+# Let f(x) = (x+30)*(x-2)^2*(x-22), whose expanded form is:
+#   x^4 + 4x^3 -688x^2 +2672x -2640.
+# For "Coeffs" mode (maximum degree 6), we store a 7-element list:
+default_degree = 4
+default_coefs = [0, 0, 1, 4, -688, 2672, -2640]   # Only last 5 will be active when degree=4.
+default_roots = [-30, 2, 2, 22, 0, 0]              # For degree=4, active roots: -30, 2, 2, 22.
 
 default_alpha = 0.001
 default_x0 = 5.5
@@ -47,15 +77,15 @@ default_steps = 5
 st.sidebar.title("Polynomial Settings")
 
 # Select mode: Coefficients or Roots.
-# Default is Roots (index=1 in the tuple).
+# Default mode set to "Roots" (index=1).
 mode = st.sidebar.radio("Select Mode", ("Coeffs", "Roots"), index=1)
 
-# Degree slider (determines how many coefficients/roots are active)
+# Degree slider: determines how many coefficients/roots are active.
 degree = st.sidebar.slider("Degree", min_value=1, max_value=6, value=default_degree, step=1)
 
 if mode == "Coeffs":
     st.sidebar.subheader("Coefficient Settings")
-    # For a degree d polynomial, we need d+1 coefficients.
+    # For a degree-d polynomial, we need d+1 coefficients.
     active_coef_defaults = default_coefs[-(degree+1):]
     active_coefs = []
     for i, default_val in enumerate(active_coef_defaults):
@@ -66,10 +96,11 @@ if mode == "Coeffs":
                                  value=float(default_val),
                                  step=0.1)
         active_coefs.append(coef)
+    # Build polynomial from these coefficients.
     poly_coef = poly_from_coeffs(active_coefs)
 else:
     st.sidebar.subheader("Root Settings")
-    # For a degree d polynomial, we have d roots.
+    # For a degree-d polynomial, we have d roots.
     active_roots = []
     for i in range(degree):
         root_val = st.sidebar.slider(f"Root {i+1}",
@@ -112,24 +143,24 @@ try:
 except Exception:
     real_roots = np.array([])
 
-# Create a polynomial object for the expanded form
-poly_expanded = np.poly1d(poly_coef)
+# Create a LaTeX string for the expanded polynomial.
+latex_poly = r"f(x) = " + poly_to_latex(poly_coef.tolist())
 
 # ---------- Display the Expanded Polynomial ----------
 st.write("### Expanded Polynomial")
-st.code(poly_expanded, language="python")
+st.latex(latex_poly)
 
 # ---------- Create the Plot (Bigger Figure) ----------
-fig, ax = plt.subplots(figsize=(12, 8))
+fig, ax = plt.subplots(figsize=(14, 9))
 ax.plot(x_vals, y_vals, color="blue", lw=2, label="f(x)")
 ax.plot(x_vals, yprime_vals, "--", color="green", lw=2, label="f'(x)")
 if real_roots.size > 0:
-    ax.scatter(real_roots, np.zeros_like(real_roots), color="red", s=60, zorder=5, label="Real Roots")
+    ax.scatter(real_roots, np.zeros_like(real_roots), color="red", s=80, zorder=5, label="Real Roots")
 ax.plot(gd_points, gd_y, marker="o", color="orange", lw=2, label="Gradient Descent")
-ax.set_xlabel("x")
-ax.set_ylabel("f(x)")
-ax.set_title("Interactive Polynomial, Its Derivative, and Gradient Descent")
-ax.legend()
+ax.set_xlabel("x", fontsize=14)
+ax.set_ylabel("f(x)", fontsize=14)
+ax.set_title("Interactive Polynomial, Its Derivative, and Gradient Descent", fontsize=16)
+ax.legend(fontsize=12)
 ax.grid(True)
 
 # ---------- Display the Plot in Streamlit ----------
